@@ -1,5 +1,4 @@
-mkdir -p .github/workflows
-cat << 'EOF' > .github/workflows/helm-lint.yml
+
 name: Helm Chart Lint
 
 on:
