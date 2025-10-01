@@ -30,4 +30,3 @@ jobs:
             echo "⎯⎯⎯ Linting chart: $chart ⎯⎯⎯"
             helm lint "$chart"
           done
-EOF
