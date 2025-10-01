@@ -1,0 +1,184 @@
+
+
+# Application configuration
+app:
+  name: secure-app-platform
+  image:
+    repository: nginx
+    tag: "1.25.3"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 1
+  
+  
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Ingress configuration for custom domains
+ingress:
+  enabled: true
+  className: "ingress-nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  
+  hosts:
+    - host: secure-app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  
+  tls:
+    - secretName: secure-app-tls
+      hosts:
+        - secure-app.example.com
+
+#Authentication for custom user
+auth:
+  enabled: true
+  users:
+    list:
+      - name: "app-admin"
+        email: "admin@mycompany.com"
+        groups: ["admin", "developers"]
+        passwordHash: ""
+      - name: "app-developer"
+        email: "dev@mycompany.com"
+        groups: ["developers"]
+        passwordHash: ""
+
+# Redis configuration for metadata caching
+redis:
+  enabled: true
+  
+  # Redis authentication
+  auth:
+    enabled: true
+    password: "my-redis-password"
+  
+  # Redis configuration
+  master:
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: "nfs-storage-retain"
+    
+    # resources:
+    #   limits:
+    #     cpu: 250m
+    #     memory: 256Mi
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+  
+  # Redis metrics
+  metrics:
+    enabled: true
+    
+  # Redis cache settings
+  cache:
+    # Cache TTL in seconds
+    defaultTTL: 3600
+    # Maximum memory usage
+    maxMemory: "200mb"
+
+# Garbage Collection configuration
+garbageCollection:
+  enabled: true
+  
+  # CronJob schedule (default: every day at 2 AM)
+  schedule: "0 2 * * *"
+  
+  # Image for garbage collection job
+  image:
+    repository: busybox
+    tag: "1.36.1"
+    pullPolicy: IfNotPresent
+  
+  # Resources for garbage collection job
+  # resources:
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 50m
+  #     memory: 64Mi
+  
+  # Garbage collection settings
+  settings:
+    # Age threshold for cleanup (in days)
+    ageThreshold: 7
+    # Cleanup targets
+    targets:
+      - "logs"
+      - "temp-files"
+      - "cache-files"
+    
+    # Log retention
+    logRetention:
+      days: 30
+  
+  # Job history limits
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  
+  # Job completion deadline
+  activeDeadlineSeconds: 3600
+
+# ConfigMap configuration
+config:
+  # Application configuration
+  app:
+    database:
+      host: "localhost"
+      port: 5432
+      name: "app_db"
+    
+    cache:
+      enabled: true
+      type: "redis"
+    
+    security:
+      enableHttps: true
+      sessionTimeout: 1800
+  
+  # Additional configuration files
+  files:
+    nginx.conf: |
+      server {
+          listen 8080;
+          server_name _;
+          
+          location / {
+              root /usr/share/nginx/html;
+              index index.html;
+          }
+          
+          location /health {
+              access_log off;
+              return 200 "healthy\n";
+          }
+      }
+
+# Persistence
+persistence:
+  enabled: true
+  storageClass: "nfs-storage-retain"
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  

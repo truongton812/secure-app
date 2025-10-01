@@ -1,0 +1,155 @@
+{{- if .Values.garbageCollection.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "secure-app-platform.fullname" . }}-garbage-collection
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "secure-app-platform.labels" . | nindent 4 }}
+    component: garbage-collection
+spec:
+  schedule: {{ .Values.garbageCollection.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.garbageCollection.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.garbageCollection.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: {{ .Values.garbageCollection.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "secure-app-platform.selectorLabels" . | nindent 12 }}
+            component: garbage-collection
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: garbage-collector
+            image: "{{ .Values.garbageCollection.image.repository }}:{{ .Values.garbageCollection.image.tag }}"
+            imagePullPolicy: {{ .Values.garbageCollection.image.pullPolicy }}
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting garbage collection at $(date)"
+              
+              # Age threshold in days
+              AGE_THRESHOLD={{ .Values.garbageCollection.settings.ageThreshold }}
+              
+              # Function to cleanup files older than threshold
+              cleanup_old_files() {
+                local target_dir=$1
+                local file_pattern=$2
+                
+                echo "Cleaning up files in $target_dir matching pattern $file_pattern older than $AGE_THRESHOLD days"
+                
+                if [ -d "$target_dir" ]; then
+                  find "$target_dir" -name "$file_pattern" -type f -mtime +$AGE_THRESHOLD -print0 | \
+                  while IFS= read -r -d '' file; do
+                    echo "Removing: $file"
+                    rm -f "$file"
+                  done
+                else
+                  echo "Directory $target_dir does not exist, skipping"
+                fi
+              }
+              
+              # Cleanup based on configured targets
+              {{- range .Values.garbageCollection.settings.targets }}
+              {{- if eq . "logs" }}
+              cleanup_old_files "/var/log" "*.log"
+              cleanup_old_files "/var/log" "*.log.*"
+              {{- else if eq . "temp-files" }}
+              cleanup_old_files "/tmp" "*"
+              cleanup_old_files "/var/tmp" "*"
+              {{- else if eq . "cache-files" }}
+              cleanup_old_files "/var/cache" "*"
+              {{- end }}
+              {{- end }}
+              
+              # Log retention cleanup
+              LOG_RETENTION_DAYS={{ .Values.garbageCollection.settings.logRetention.days }}
+              echo "Cleaning up logs older than $LOG_RETENTION_DAYS days"
+              
+              # Application-specific log cleanup
+              if [ -d "/app/logs" ]; then
+                find /app/logs -name "*.log" -type f -mtime +$LOG_RETENTION_DAYS -delete
+                find /app/logs -name "*.log.*" -type f -mtime +$LOG_RETENTION_DAYS -delete
+              fi
+              
+              # Kubernetes pod logs cleanup (if accessible)
+              if [ -d "/var/log/pods" ]; then
+                find /var/log/pods -name "*.log" -type f -mtime +$LOG_RETENTION_DAYS -delete
+              fi
+              
+              # Container runtime logs cleanup
+              if [ -d "/var/lib/docker/containers" ]; then
+                find /var/lib/docker/containers -name "*-json.log" -type f -mtime +$LOG_RETENTION_DAYS -delete
+              fi
+              
+              # Redis cache cleanup (if enabled and accessible)
+              {{- if .Values.redis.enabled }}
+              echo "Performing Redis cache cleanup"
+              # Note: This would require redis-cli to be available or custom application logic
+              # For demonstration, we'll just log the action
+              echo "Redis cache cleanup would be performed here"
+              {{- end }}
+              
+              # Database cleanup (application-specific)
+              echo "Performing database cleanup tasks"
+              # This would typically involve connecting to the database and running cleanup queries
+              # Example:
+              # - Clean up expired sessions
+              # - Remove old audit logs
+              # - Vacuum/optimize database
+              echo "Database cleanup would be performed here"
+              
+              # Disk space check
+              echo "Checking disk space after cleanup"
+              df -h
+              
+              # Memory usage check
+              echo "Checking memory usage"
+              free -m
+              
+              echo "Garbage collection completed at $(date)"
+            
+            env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_HOST
+              value: {{ include "secure-app-platform.redis.fullname" . }}
+            {{- if .Values.redis.auth.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "secure-app-platform.fullname" . }}-auth
+                  key: redis-password
+            {{- end }}
+            {{- end }}
+            
+            resources:
+              {{- toYaml .Values.garbageCollection.resources | nindent 14 }}
+            
+            volumeMounts:
+            - name: cleanup-logs
+              mountPath: /var/log/cleanup
+            {{- if .Values.persistence.enabled }}
+            - name: app-data
+              mountPath: /app/data
+            {{- end }}
+            
+          volumes:
+          - name: cleanup-logs
+            emptyDir: {}
+          {{- if .Values.persistence.enabled }}
+          - name: app-data
+            persistentVolumeClaim:
+              claimName: {{ include "secure-app-platform.fullname" . }}-pvc
+          {{- end }}
+{{- end }}
