@@ -23,8 +23,5 @@ data:
         {{- if .Values.redis.auth.enabled }}
         auth: true
         {{- end }}
-        ttl: {{ .Values.redis.cache.defaultTTL }}
-        maxMemory: {{ .Values.redis.cache.maxMemory | quote }}
-        evictionPolicy: {{ .Values.redis.cache.evictionPolicy | quote }}
       {{- end }}
 
