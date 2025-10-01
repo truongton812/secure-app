@@ -2,6 +2,99 @@
 
 ### Custom Installation
 
+
+
+# Application configuration
+app:
+  name: secure-app-platform
+  image:
+    repository: nginx
+    tag: "1.25.3"
+  replicaCount: 1
+  
+  
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+
+# Ingress configuration for custom domains
+ingress:
+  enabled: true
+  className: "ingress-nginx"
+  hosts:
+    - host: secure-app-platform.example.com
+  
+  tls:
+    - secretName: secure-app-platform-tls
+      hosts:
+        - secure-app-platform.example.com
+      certificate: |-
+        -----BEGIN CERTIFICATE-----
+        YOUR_BASE64_OR_PEM_CERT_CONTENT_HERE
+        -----END CERTIFICATE-----
+      privateKey: |-
+        -----BEGIN PRIVATE KEY-----
+        YOUR_BASE64_OR_PEM_KEY_CONTENT_HERE
+        -----END PRIVATE KEY-----        
+
+#Authentication for custom user
+auth:
+  enabled: true
+  users:
+    list:
+      - name: "app-admin"
+        email: "admin@mycompany.com"
+        groups: ["admin", "developers"]
+        passwordHash: ""
+      - name: "app-developer"
+        email: "dev@mycompany.com"
+        groups: ["developers"]
+        passwordHash: ""
+
+# Redis configuration for metadata caching
+redis:
+  enabled: true
+  
+  # Redis authentication
+  auth:
+    enabled: true
+    password: "my-redis-password"
+  
+  
+
+# Garbage Collection configuration
+garbageCollection:
+  enabled: true
+  
+  # CronJob schedule (default: every day at 2 AM)
+  schedule: "0 2 * * *"
+  
+  # Image for garbage collection job
+  image:
+    repository: busybox
+    tag: "1.36.1"
+    pullPolicy: IfNotPresent
+  
+  # Garbage collection settings
+  settings:
+    # Age threshold for cleanup (in days)
+    ageThreshold: 7
+    # Cleanup targets
+    targets:
+      - "logs"
+      - "temp-files"
+      - "cache-files"
+    
+    # Log retention
+    logRetention:
+      days: 30
+```
+  
+
+
 Create a custom values file:
 
 ```yaml
