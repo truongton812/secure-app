@@ -1,8 +1,6 @@
 
-
-### Custom Installation
-
-
+Create a custom-values.yaml file:
+```yaml
 
 # Application configuration
 app:
@@ -93,47 +91,6 @@ garbageCollection:
       days: 30
 ```
   
-
-
-Create a custom values file:
-
-```yaml
-# custom-values.yaml
-ingress:
-  enabled: true
-  hosts:
-    - host: myapp.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - secretName: myapp-tls
-      hosts:
-        - myapp.example.com
-
-auth:
-  enabled: true
-  users:
-    list:
-      - name: "app-admin"
-        email: "admin@mycompany.com"
-        groups: ["admin", "developers"]
-        passwordHash: ""
-      - name: "app-developer"
-        email: "dev@mycompany.com"
-        groups: ["developers"]
-        passwordHash: ""
-
-redis:
-  auth:
-    password: "your-secure-redis-password"
-
-garbageCollection:
-  schedule: "0 3 * * *"  # Run at 3 AM daily
-  settings:
-    ageThreshold: 14  # Clean files older than 14 days
-```
-
 
 
 ## Configuration
