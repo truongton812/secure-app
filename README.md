@@ -59,6 +59,7 @@
 | `garbageCollection.settings.targets`     | Chọn loại log cần cleanup. Có thể chọn các giá trị "logs", "temp-files" or "cache-files"          | 
 
 ## File values.yaml mẫu
+```
 # Application configuration
 app:
   name: secure-app-platform
@@ -161,4 +162,4 @@ persistence:
   storageClass: "nfs-storage-retain"
   accessMode: ReadWriteOnce
   size: 1Gi
-
+```
