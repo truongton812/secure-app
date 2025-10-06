@@ -21,22 +21,10 @@ service:
 # Ingress configuration for custom domains
 ingress:
   enabled: true
-  className: "ingress-nginx"
+  className: "ingress"
   hosts:
     - host: secure-app-platform.example.com
-  
-  tls:
-    - secretName: secure-app-platform-tls
-      hosts:
-        - secure-app-platform.example.com
-      certificate: |-
-        -----BEGIN CERTIFICATE-----
-        YOUR_BASE64_OR_PEM_CERT_CONTENT_HERE
-        -----END CERTIFICATE-----
-      privateKey: |-
-        -----BEGIN PRIVATE KEY-----
-        YOUR_BASE64_OR_PEM_KEY_CONTENT_HERE
-        -----END PRIVATE KEY-----        
+   
 
 #Authentication for custom user
 auth:
